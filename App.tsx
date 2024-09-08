@@ -4,11 +4,11 @@ import { Entypo, AntDesign, FontAwesome6, Feather, FontAwesome5 } from '@expo/ve
 
 export default function HomeScreen() {
   const [darkMode, setDarkMode] = useState(false);
-  const [currentNumber, setCurrentNumber] = useState('0'); // Default to '0'
+  const [currentNumber, setCurrentNumber] = useState('0'); 
   const [lastNumber, setLastNumber] = useState('');
-  const [iconToggle, setIconToggle] = useState(false);
+  const [advancedKeyboard, setAdvancedKeyboard] = useState(false);
 
-  const buttons = [
+  const defaultButtons = [
     'C', 'DEL', '%', '/',
     '7', '8', '9', '*',
     '4', '5', '6', '-',
@@ -16,10 +16,21 @@ export default function HomeScreen() {
     '@', '0', '.', '='
   ];
 
+  const advancedButtons = [
+    '2nd', 'deg', 'sin', 'cos', 'tan',
+    '^y', 'lg', 'ln', '(', ')',
+    '√x', 'C', 'DEL', '%', '/',
+    'x!', '7', '8', '9', '*',
+    '1/x', '4', '5', '6', '-',
+    'π', '1', '2', '3', '+',
+    '@', 'e', '0', '.', '='
+  ];
+
+  const buttons = advancedKeyboard ? advancedButtons : defaultButtons;
+
   function calculator() {
     let lastChar = currentNumber[currentNumber.length - 1];
     if (['/', '*', '-', '+', '.', '%'].includes(lastChar)) {
-      // Remove the operator and return the current number
       setCurrentNumber(currentNumber.slice(0, -1));
     } else {
       let result = eval(currentNumber).toString();
@@ -32,7 +43,7 @@ export default function HomeScreen() {
     Vibration.vibrate(35);
 
     if (buttonPressed === '@') {
-      // Do nothing when the @ button is pressed
+      setAdvancedKeyboard(!advancedKeyboard);
       return;
     }
 
@@ -47,10 +58,8 @@ export default function HomeScreen() {
 
     if (['+', '-', '*', '/', '%'].includes(buttonPressed)) {
       if (['+', '-', '*', '/', '%'].includes(currentNumber[currentNumber.length - 1])) {
-        // Replace the last operator with the new operator
         setCurrentNumber(currentNumber.slice(0, -1) + buttonPressed);
       } else {
-        // Append the operator if the last character isn't an operator
         setCurrentNumber(currentNumber + buttonPressed);
       }
       return;
@@ -58,22 +67,24 @@ export default function HomeScreen() {
 
     if (buttonPressed === '.') {
       if (currentNumber.includes('.') && !['+', '-', '*', '/', '%'].includes(currentNumber[currentNumber.length - 1])) {
-        return; // Prevent adding a second decimal point
+        return;
       } else if (['+', '-', '*', '/', '%'].includes(currentNumber[currentNumber.length - 1])) {
-        setCurrentNumber(currentNumber + '0.'); // If an operator is the last character, add '0.' instead
+        setCurrentNumber(currentNumber + '0.');
       } else {
         setCurrentNumber(currentNumber + '.');
       }
       return;
     }
-
+    if (currentNumber.length >= 15 && !['+', '-', '*', '/', '%', 'DEL', 'C', '='].includes(buttonPressed)) {
+      return; // Prevents adding more than 15 digits
+    }
     switch (buttonPressed) {
       case 'DEL':
         setCurrentNumber(currentNumber.length > 1 ? currentNumber.substring(0, currentNumber.length - 1) : '0');
         return;
       case 'C':
         setLastNumber('');
-        setCurrentNumber('0'); // Reset to '0'
+        setCurrentNumber('0'); 
         return;
       case '=':
         setLastNumber(currentNumber + '=');
@@ -98,19 +109,15 @@ export default function HomeScreen() {
           button === '@' ? (
             <TouchableOpacity
               key={button}
-              style={[styles.button, darkMode ? styles.darkButton : styles.lightButton]}
+              style={[styles.button, darkMode ? styles.darkButton : styles.lightButton, advancedKeyboard && styles.advancedButton]}
               onPress={() => handleInput(button)}
             >
-              {iconToggle ? (
-                <AntDesign name="shrink" size={24} color={darkMode ? '#14FFEC' : '#71C9CE'} />
-              ) : (
-                <AntDesign name="arrowsalt" size={24} color={darkMode ? '#14FFEC' : '#71C9CE'} />
-              )}
+              <AntDesign name={advancedKeyboard ? 'shrink' : 'arrowsalt'} size={24} color={darkMode ? '#14FFEC' : '#FF2E63'} />
             </TouchableOpacity>
           ) : button === 'DEL' ? (
             <TouchableOpacity
               key={button}
-              style={[styles.button, styles.specialButton]}
+              style={[styles.button, styles.specialButton, advancedKeyboard && styles.advancedButton]}
               onPress={() => handleInput(button)}
             >
               <FontAwesome6 name="delete-left" size={24} color={darkMode ? '#EEEEEE' : '#393E46'} />
@@ -118,7 +125,7 @@ export default function HomeScreen() {
           ) : button === '%' ? (
             <TouchableOpacity
               key={button}
-              style={[styles.button, darkMode ? styles.darkButton : styles.lightButton, styles.operationButton]}
+              style={[styles.button, darkMode ? styles.darkButton : styles.lightButton, styles.operationButton, advancedKeyboard && styles.advancedButton]}
               onPress={() => handleInput(button)}
             >
               <Feather name="percent" size={24} color={darkMode ? '#EEEEEE' : '#393E46'} />
@@ -126,23 +133,39 @@ export default function HomeScreen() {
           ) : button === '/' ? (
             <TouchableOpacity
               key={button}
-              style={[styles.button, darkMode ? styles.darkButton : styles.lightButton, styles.operationButton]}
+              style={[styles.button, darkMode ? styles.darkButton : styles.lightButton, styles.operationButton, advancedKeyboard && styles.advancedButton]}
               onPress={() => handleInput(button)}
             >
               <Feather name="divide" size={24} color={darkMode ? '#EEEEEE' : '#393E46'} />
             </TouchableOpacity>
+          ) : button === '*' ? (
+            <TouchableOpacity
+              key={button}
+              style={[styles.button, darkMode ? styles.darkButton : styles.lightButton, styles.operationButton, advancedKeyboard && styles.advancedButton]}
+              onPress={() => handleInput(button)}
+            >
+              <Text style={darkMode ? styles.darkTextButton : styles.lightTextButton}>x</Text>
+            </TouchableOpacity>
           ) : button === '+' ? (
             <TouchableOpacity
               key={button}
-              style={[styles.button, darkMode ? styles.darkButton : styles.lightButton, styles.operationButton]}
+              style={[styles.button, darkMode ? styles.darkButton : styles.lightButton, styles.operationButton, advancedKeyboard && styles.advancedButton]}
               onPress={() => handleInput(button)}
             >
               <FontAwesome6 name="add" size={24} color={darkMode ? '#EEEEEE' : '#393E46'} />
             </TouchableOpacity>
+          ) : button === '-' ? (
+            <TouchableOpacity
+              key={button}
+              style={[styles.button, darkMode ? styles.darkButton : styles.lightButton, styles.operationButton, advancedKeyboard && styles.advancedButton]}
+              onPress={() => handleInput(button)}
+            >
+              <FontAwesome6 name="minus" size={24} color={darkMode ? '#EEEEEE' : '#393E46'} />
+            </TouchableOpacity>
           ) : button === '=' ? (
             <TouchableOpacity
               key={button}
-              style={[styles.button, darkMode ? styles.darkButton : styles.lightButton, styles.operationButton]}
+              style={[styles.button, darkMode ? styles.darkButton : styles.lightButton, styles.operationButton, advancedKeyboard && styles.advancedButton]}
               onPress={() => handleInput(button)}
             >
               <FontAwesome5 name="equals" size={24} color={darkMode ? '#EEEEEE' : '#393E46'} />
@@ -155,10 +178,16 @@ export default function HomeScreen() {
                 darkMode ? styles.darkButton : styles.lightButton,
                 ['=', '/', '*', '-', '+', '%'].includes(button) && styles.operationButton,
                 button === 'C' && styles.specialButton,
+                advancedKeyboard && styles.advancedButton,
               ]}
               onPress={() => handleInput(button)}
             >
-              <Text style={darkMode ? styles.darkTextButton : styles.lightTextButton}>{button}</Text>
+              <Text style={[
+                darkMode ? styles.darkTextButton : styles.lightTextButton,
+                advancedKeyboard && styles.advancedTextButton
+              ]}>
+                {button}
+              </Text>
             </TouchableOpacity>
           )
         )}
@@ -173,12 +202,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#EEEEEE',
     alignItems: 'center',
     justifyContent: 'flex-end',
+    paddingTop: 100, // Added padding at the bottom
   },
   containerDark: {
     flex: 1,
     backgroundColor: '#222831',
     alignItems: 'center',
     justifyContent: 'flex-end',
+    paddingTop: 100,
+    //paddingBottom: 20, // Added padding at the bottom
   },
   results: {
     width: '90%',
@@ -213,41 +245,58 @@ const styles = StyleSheet.create({
   },
   themeButton: {
     alignSelf: 'flex-start',
+    position: 'absolute',
+    left: 20,
+    top: 20,
     marginBottom: 10,
     padding: 10,
-    backgroundColor: '#00ADB5',
     borderRadius: 10,
+    backgroundColor: '#00ADB5',
   },
   buttons: {
     width: '90%',
     flexDirection: 'row',
     flexWrap: 'wrap',
+    flex: 1,
     justifyContent: 'space-between',
+    // paddingTop: 20,
   },
   button: {
     width: '23%',
-    height: 70,
+    aspectRatio: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    borderRadius: 5,
     marginVertical: 5,
-    borderRadius: 10,
   },
-  darkButton: {
-    backgroundColor: '#212121',
+  advancedButton: {
+    width: '18.5%', // Adjusted button width for advanced keyboard
+    aspectRatio: 1, // Maintains square buttons
   },
   lightButton: {
     backgroundColor: '#E3FDFD',
   },
-operationButton: {
+  darkButton: {
+    backgroundColor: '#212121',
+  },
+  operationButton: {
     backgroundColor: '#00ADB5',
   },
   specialButton: {
-    backgroundColor: '#FF5722', 
-  }, 
-  lightTextButton: { 
-    fontSize: 24, color: '#393E46', 
-  }, 
-  darkTextButton: { 
-    fontSize: 24, color: '#EEEEEE', 
-  }, 
+    backgroundColor: '#FF2E63',
+  },
+  lightTextButton: {
+    fontSize: 24,
+    color: '#393E46',
+  },
+  darkTextButton: {
+    fontSize: 24,
+    color: '#EEEEEE',
+  },
+  advancedTextButton: {
+    fontSize: 18, // Slightly smaller font size for advanced keyboard
+
+    //color: '#B0B0B0', // Lighter font color for advanced keyboard
+  },
+  
 });
