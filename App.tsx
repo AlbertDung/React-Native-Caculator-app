@@ -295,8 +295,6 @@ const styles = StyleSheet.create({
   },
   advancedTextButton: {
     fontSize: 18, // Slightly smaller font size for advanced keyboard
-
-    //color: '#B0B0B0', // Lighter font color for advanced keyboard
   },
   
 });
