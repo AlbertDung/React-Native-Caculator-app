@@ -8,6 +8,12 @@ export default function HomeScreen() {
   const [lastNumber, setLastNumber] = useState('');
   const [advancedKeyboard, setAdvancedKeyboard] = useState(false);
 
+  const [operationState, setOperationState] = useState({
+    operation: '',
+    firstOperand: '',
+    waitingForSecondOperand: false,
+  });
+
   const defaultButtons = [
     'C', 'DEL', '%', '/',
     '7', '8', '9', '*',
@@ -25,75 +31,147 @@ export default function HomeScreen() {
     'π', '1', '2', '3', '+',
     '@', 'e', '0', '.', '='
   ];
-
+  
   const buttons = advancedKeyboard ? advancedButtons : defaultButtons;
 
-  function calculator() {
-    let lastChar = currentNumber[currentNumber.length - 1];
-    if (['/', '*', '-', '+', '.', '%'].includes(lastChar)) {
-      setCurrentNumber(currentNumber.slice(0, -1));
-    } else {
-      let result = eval(currentNumber).toString();
-      setCurrentNumber(result);
-      return;
-    }
-  }
-
   function handleInput(buttonPressed: string) {
-    Vibration.vibrate(35);
+    const operations: { [key: string]: Function } = {
+        '^y': (base: number, exponent: number) => Math.pow(base, exponent),
+        '√x': (number: number) => Math.sqrt(number),
+        'x!': (number: number) => factorial(number),
+        '1/x': (number: number) => 1 / number,
+        'π': () => Math.PI.toFixed(3),
+        'e': () => Math.E.toFixed(3),
+    };
+
+    function factorial(n: number) {
+        if (n < 0 || !Number.isInteger(n)) return 'Error'; // Handle non-integer and negative numbers
+        if (n === 0 || n === 1) return 1;
+        let result = 1;
+        for (let i = 2; i <= n; i++) {
+            result *= i;
+        }
+        return result;
+    }
+
+    if (operations[buttonPressed]) {
+        if (buttonPressed === '^y') {
+            setOperationState({
+                operation: buttonPressed,
+                firstOperand: currentNumber,
+                waitingForSecondOperand: true
+            });
+            setCurrentNumber('');
+            setLastNumber(lastNumber + ` ${currentNumber} ^`);
+            return;
+        } else if (buttonPressed === '1/x' || buttonPressed === '√x' || buttonPressed === 'π' || buttonPressed === 'e') {
+            const result = operations[buttonPressed]();
+            setCurrentNumber(result.toString());
+            setLastNumber(lastNumber + (buttonPressed === 'e' ? 'e' : buttonPressed));
+            return;
+        } else {
+            const result = operations[buttonPressed](parseFloat(currentNumber));
+            setCurrentNumber(result.toString());
+            setLastNumber(lastNumber + (buttonPressed === 'e' ? 'e' : buttonPressed));
+            return;
+        }
+    }
 
     if (buttonPressed === '@') {
-      setAdvancedKeyboard(!advancedKeyboard);
-      return;
+        setAdvancedKeyboard(!advancedKeyboard);
+        return;
     }
 
     if (buttonPressed === '%') {
-      if (['+', '-', '*', '/', '%'].includes(currentNumber[currentNumber.length - 1])) {
-        setCurrentNumber((parseFloat(currentNumber.slice(0, -1)) / 100).toString());
-      } else {
-        setCurrentNumber((parseFloat(currentNumber) / 100).toString());
-      }
-      return;
+        if (['+', '-', '*', '/', '%'].includes(currentNumber[currentNumber.length - 1])) {
+            setCurrentNumber((parseFloat(currentNumber.slice(0, -1)) / 100).toString());
+        } else {
+            setCurrentNumber((parseFloat(currentNumber) / 100).toString());
+        }
+        return;
     }
 
     if (['+', '-', '*', '/', '%'].includes(buttonPressed)) {
-      if (['+', '-', '*', '/', '%'].includes(currentNumber[currentNumber.length - 1])) {
-        setCurrentNumber(currentNumber.slice(0, -1) + buttonPressed);
-      } else {
-        setCurrentNumber(currentNumber + buttonPressed);
-      }
-      return;
+        if (['+', '-', '*', '/', '%'].includes(currentNumber[currentNumber.length - 1])) {
+            setCurrentNumber(currentNumber.slice(0, -1) + buttonPressed);
+        } else {
+            setCurrentNumber(currentNumber + buttonPressed);
+        }
+        return;
     }
 
+    // Handle decimal points
     if (buttonPressed === '.') {
-      if (currentNumber.includes('.') && !['+', '-', '*', '/', '%'].includes(currentNumber[currentNumber.length - 1])) {
-        return;
-      } else if (['+', '-', '*', '/', '%'].includes(currentNumber[currentNumber.length - 1])) {
-        setCurrentNumber(currentNumber + '0.');
+      const lastChar = currentNumber[currentNumber.length - 1];
+      // Prevent multiple decimal points in a single number
+      if (currentNumber.includes('.') && !['+', '-', '*', '/', '%'].includes(lastChar)) {
+          return;
+      } else if (['+', '-', '*', '/', '%'].includes(lastChar)) {
+          setCurrentNumber(currentNumber + '0.');
       } else {
-        setCurrentNumber(currentNumber + '.');
+          setCurrentNumber(currentNumber + '.');
       }
       return;
-    }
-    if (currentNumber.length >= 15 && !['+', '-', '*', '/', '%', 'DEL', 'C', '='].includes(buttonPressed)) {
-      return; // Prevents adding more than 15 digits
-    }
-    switch (buttonPressed) {
-      case 'DEL':
-        setCurrentNumber(currentNumber.length > 1 ? currentNumber.substring(0, currentNumber.length - 1) : '0');
-        return;
-      case 'C':
-        setLastNumber('');
-        setCurrentNumber('0'); 
-        return;
-      case '=':
-        setLastNumber(currentNumber + '=');
-        calculator();
-        return;
-      default:
-        setCurrentNumber(currentNumber === '0' ? buttonPressed : currentNumber + buttonPressed);
-    }
   }
+
+    if (currentNumber.length >= 15 && !['+', '-', '*', '/', '%', 'DEL', 'C', '='].includes(buttonPressed)) {
+        return; // Prevents adding more than 15 digits
+    }
+
+    switch (buttonPressed) {
+        case 'DEL':
+            setCurrentNumber(currentNumber.length > 1 ? currentNumber.substring(0, currentNumber.length - 1) : '0');
+            return;
+        case 'C':
+            setLastNumber('');
+            setCurrentNumber('0');
+            setOperationState({ operation: '', firstOperand: '', waitingForSecondOperand: false });
+            return;
+        case '=':
+            if (operationState.waitingForSecondOperand) {
+                const result = operations[operationState.operation](parseFloat(convertSymbolToNumber(operationState.firstOperand)), parseFloat(convertSymbolToNumber(currentNumber)));
+                setCurrentNumber(formatResult(result));
+                setOperationState({ operation: '', firstOperand: '', waitingForSecondOperand: false });
+                setLastNumber(`${operationState.firstOperand} ${operationState.operation} ${currentNumber} =`);
+            } else {
+                setLastNumber(`${currentNumber} `+'=');
+                calculateResult();
+            }
+            return;
+        default:
+            setCurrentNumber(currentNumber === '0' ? buttonPressed : currentNumber + buttonPressed);
+            if (!['+', '-', '*', '/', '%'].includes(buttonPressed)) {
+                setLastNumber(lastNumber + buttonPressed);
+            }
+    }
+}
+
+function calculateResult() {
+  let lastChar = currentNumber[currentNumber.length - 1];
+  if (['/', '*', '-', '+', '.', '%'].includes(lastChar)) {
+    setCurrentNumber(currentNumber.slice(0, -1));
+  } else {
+    let result = eval(currentNumber).toString();
+    setCurrentNumber(result);
+    return;
+  }
+
+}
+
+function formatResult(number: number) {
+    return Number(number).toFixed(0);
+}
+
+function convertSymbolToNumber(value: string) {
+    return value
+        .replace(/π/g, Math.PI.toFixed(3))
+        .replace(/e/g, Math.E.toFixed(3));
+}
+
+
+
+
+
 
   return (
     <View style={darkMode ? styles.containerDark : styles.containerLight}>
@@ -298,3 +376,11 @@ const styles = StyleSheet.create({
   },
   
 });
+function formatNumber(result: any): React.SetStateAction<string> {
+  throw new Error('Function not implemented.');
+}
+
+function convertSymbolToNumber(firstOperand: string): string {
+  throw new Error('Function not implemented.');
+}
+
