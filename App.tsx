@@ -7,6 +7,7 @@ export default function HomeScreen() {
   const [currentNumber, setCurrentNumber] = useState('0'); 
   const [lastNumber, setLastNumber] = useState('');
   const [advancedKeyboard, setAdvancedKeyboard] = useState(false);
+  const [secondMode, setSecondMode] = useState(false);
 
   const [operationState, setOperationState] = useState({
     operation: '',
@@ -23,7 +24,7 @@ export default function HomeScreen() {
   ];
 
   const advancedButtons = [
-    '2nd', 'deg', 'sin', 'cos', 'tan',
+    '2nd', 'deg', secondMode ? 'sin^-1' : 'sin', secondMode ? 'cos^-1' : 'cos', secondMode ? 'tan^-1' : 'tan',
     '^y', 'lg', 'ln', '(', ')',
     '√x', 'C', 'DEL', '%', '/',
     'x!', '7', '8', '9', '*',
@@ -34,18 +35,40 @@ export default function HomeScreen() {
   
   const buttons = advancedKeyboard ? advancedButtons : defaultButtons;
 
-  function handleInput(buttonPressed: string) {
+  function evaluateExpression(expression: string): number {
+    try {
+        // Use a library like math.js for better security and functionality
+        // return math.evaluate(expression);
+        return eval(expression); // For simplicity, but be cautious with eval
+    } catch {
+        return NaN;
+    }
+}
+
+function handleInput(buttonPressed: string) {
     const operations: { [key: string]: Function } = {
         '^y': (base: number, exponent: number) => Math.pow(base, exponent),
         '√x': (number: number) => Math.sqrt(number),
-        'x!': (number: number) => factorial(number),
-        '1/x': (number: number) => 1 / number,
+        'x!': (number: number) => factorial(parseInt(currentNumber, 10)),
+        '1/x': (sample: number, element: number) => sample / element,
         'π': () => Math.PI.toFixed(3),
         'e': () => Math.E.toFixed(3),
+        'sin': (number: number) => Math.sin(toRadians(number)),
+        'cos': (number: number) => Math.cos(toRadians(number)),
+        'tan': (number: number) => Math.tan(toRadians(number)),
+        'sin^-1': (number: number) => toDegrees(Math.asin(number)),
+        'cos^-1': (number: number) => toDegrees(Math.acos(number)),
+        'tan^-1': (number: number) => toDegrees(Math.atan(number)),
+        'ln': (number: number) => Math.log(number), // Natural logarithm (base e)
+        'lg': (number: number) => Math.log10(number), // Logarithm base 10
     };
-
+    
+    function toDegrees(radians: number) {
+      return radians * (180 / Math.PI);
+    }
+    
     function factorial(n: number) {
-        if (n < 0 || !Number.isInteger(n)) return 'Error'; // Handle non-integer and negative numbers
+        if (n < 0 || !Number.isInteger(n)) return 'Error';
         if (n === 0 || n === 1) return 1;
         let result = 1;
         for (let i = 2; i <= n; i++) {
@@ -54,25 +77,61 @@ export default function HomeScreen() {
         return result;
     }
 
+    function toRadians(degrees: number) {
+        return degrees * (Math.PI / 180);
+    }
+
+    function processOperation(operation: string, number: number) {
+        return operations[operation](number);
+    }
+
     if (operations[buttonPressed]) {
-        if (buttonPressed === '^y') {
+        if (['sin', 'cos', 'tan', 'sin^-1', 'cos^-1', 'tan^-1', 'ln', 'lg'].includes(buttonPressed)) {
             setOperationState({
                 operation: buttonPressed,
                 firstOperand: currentNumber,
                 waitingForSecondOperand: true
             });
             setCurrentNumber('');
-            setLastNumber(lastNumber + ` ${currentNumber} ^`);
+            setLastNumber(lastNumber + ` ${buttonPressed}(`);
             return;
-        } else if (buttonPressed === '1/x' || buttonPressed === '√x' || buttonPressed === 'π' || buttonPressed === 'e') {
-            const result = operations[buttonPressed]();
-            setCurrentNumber(result.toString());
-            setLastNumber(lastNumber + (buttonPressed === 'e' ? 'e' : buttonPressed));
-            return;
-        } else {
+        }
+        if (buttonPressed === '^y' || buttonPressed === '1/x' ) {
+          setOperationState({
+              operation: buttonPressed,
+              firstOperand: currentNumber,
+              waitingForSecondOperand: true
+          });
+          setCurrentNumber('');
+          setLastNumber(lastNumber + ` ${buttonPressed}(`);
+          return;
+        } 
+        if (buttonPressed === '√x') {
             const result = operations[buttonPressed](parseFloat(currentNumber));
             setCurrentNumber(result.toString());
-            setLastNumber(lastNumber + (buttonPressed === 'e' ? 'e' : buttonPressed));
+            setLastNumber(lastNumber + `√${currentNumber}`);
+            return;
+        } else if (buttonPressed === 'x!') {
+            const result = operations[buttonPressed]();
+            if (result === 'Error') {
+                setCurrentNumber('Error');
+            } else {
+                setCurrentNumber(result.toString());
+                setLastNumber(lastNumber + `${currentNumber}!`);
+            }
+            return;
+        } else if (buttonPressed === '1/x') {
+            setOperationState({
+                operation: buttonPressed,
+                firstOperand: currentNumber,
+                waitingForSecondOperand: true
+            });
+            setCurrentNumber('');
+            setLastNumber(lastNumber + ` ${buttonPressed}(`);
+            return;
+        } else {
+            const result = operations[buttonPressed]();
+            setCurrentNumber(result.toString());
             return;
         }
     }
@@ -80,6 +139,10 @@ export default function HomeScreen() {
     if (buttonPressed === '@') {
         setAdvancedKeyboard(!advancedKeyboard);
         return;
+    }
+    if (buttonPressed === '2nd') {
+      setSecondMode(!secondMode);
+      return;
     }
 
     if (buttonPressed === '%') {
@@ -100,19 +163,14 @@ export default function HomeScreen() {
         return;
     }
 
-    // Handle decimal points
     if (buttonPressed === '.') {
-      const lastChar = currentNumber[currentNumber.length - 1];
-      // Prevent multiple decimal points in a single number
-      if (currentNumber.includes('.') && !['+', '-', '*', '/', '%'].includes(lastChar)) {
-          return;
-      } else if (['+', '-', '*', '/', '%'].includes(lastChar)) {
-          setCurrentNumber(currentNumber + '0.');
-      } else {
-          setCurrentNumber(currentNumber + '.');
-      }
-      return;
-  }
+        const parts = currentNumber.split(/[\+\-\*\/\%]/);
+        const lastPart = parts[parts.length - 1];
+        if (!lastPart.includes('.')) {
+            setCurrentNumber(currentNumber + buttonPressed);
+        }
+        return;
+    }
 
     if (currentNumber.length >= 15 && !['+', '-', '*', '/', '%', 'DEL', 'C', '='].includes(buttonPressed)) {
         return; // Prevents adding more than 15 digits
@@ -129,12 +187,13 @@ export default function HomeScreen() {
             return;
         case '=':
             if (operationState.waitingForSecondOperand) {
-                const result = operations[operationState.operation](parseFloat(convertSymbolToNumber(operationState.firstOperand)), parseFloat(convertSymbolToNumber(currentNumber)));
+                const innerExpression = `(${currentNumber})`;
+                const result = processOperation(operationState.operation, evaluateExpression(innerExpression));
                 setCurrentNumber(formatResult(result));
                 setOperationState({ operation: '', firstOperand: '', waitingForSecondOperand: false });
-                setLastNumber(`${operationState.firstOperand} ${operationState.operation} ${currentNumber} =`);
+                setLastNumber(`${operationState.operation}(${operationState.firstOperand}) = ${currentNumber}`);
             } else {
-                setLastNumber(`${currentNumber} `+'=');
+                setLastNumber(`${currentNumber} ` + '=');
                 calculateResult();
             }
             return;
@@ -146,20 +205,23 @@ export default function HomeScreen() {
     }
 }
 
-function calculateResult() {
-  let lastChar = currentNumber[currentNumber.length - 1];
-  if (['/', '*', '-', '+', '.', '%'].includes(lastChar)) {
-    setCurrentNumber(currentNumber.slice(0, -1));
-  } else {
-    let result = eval(currentNumber).toString();
-    setCurrentNumber(result);
-    return;
-  }
 
+function calculateResult() {
+    try {
+        let result = eval(convertSymbolToNumber(currentNumber)).toString();
+        setCurrentNumber(formatResult(result));
+    } catch (error) {
+        setCurrentNumber('Error');
+    }
 }
 
-function formatResult(number: number) {
-    return Number(number).toFixed(0);
+function formatResult(number: string) {
+    const num = parseFloat(number);
+    if (Number.isInteger(num)) {
+        return num.toString(); // Return as an integer if it's an integer
+    } else {
+        return num.toFixed(3); // Otherwise, fix to 3 decimal places
+    }
 }
 
 function convertSymbolToNumber(value: string) {
@@ -167,9 +229,6 @@ function convertSymbolToNumber(value: string) {
         .replace(/π/g, Math.PI.toFixed(3))
         .replace(/e/g, Math.E.toFixed(3));
 }
-
-
-
 
 
 
