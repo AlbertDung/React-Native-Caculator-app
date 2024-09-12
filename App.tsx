@@ -132,7 +132,9 @@ export default function HomeScreen() {
       }
       return result;
     }
-
+    function calculatePercentage(base: number, percentage: number) {
+      return base * (percentage / 100);
+    }
     function toRadians(degrees: number) {
       return degrees * (Math.PI / 180);
     }
@@ -196,41 +198,74 @@ export default function HomeScreen() {
         return;
       }
     }
+    if (buttonPressed === '%') {
+      const lastChar = currentNumber[currentNumber.length - 1];
+      const parts = currentNumber.split(/[\+\-\*\/]/);
 
-    if (buttonPressed === "=") {
-      if (operationState.waitingForSecondOperand) {
+      if (lastChar === '%') {
+          setCurrentNumber(currentNumber);
+          return;
+      }
+
+      let newNumber = currentNumber;
+
+      if (parts.length === 2) {
+          const [firstOperand, secondOperand] = parts;
+
+          const base = parseFloat(firstOperand);
+          const percentage = parseFloat(secondOperand);
+
+          if (currentNumber.includes('*') || currentNumber.includes('/')) {
+              if (secondOperand.endsWith('%')) {
+                  const percentValue = percentage / 100;
+                  newNumber = `${base}${currentNumber.includes('*') ? '*' : '/'}${percentValue}`;
+              } else {
+                  const percentValue = percentage / 100;
+                  newNumber = currentNumber.slice(0, currentNumber.length - secondOperand.length) + percentValue;
+              }
+          } else {
+              newNumber = currentNumber.slice(0, currentNumber.length - secondOperand.length) + calculatePercentage(base, percentage);
+          }
+      } else if (parts.length === 1) {
+          const number = parseFloat(currentNumber);
+          newNumber = (number / 100).toString();
+      }
+
+      setCurrentNumber(newNumber);
+      return;
+  }
+  if (buttonPressed === "=") {
+    if (operationState.waitingForSecondOperand) {
         let result;
 
         if (operationState.operation === "1/x") {
-          const denominator = parseFloat(operationState.firstOperand);
-          const numerator = currentNumber ? parseFloat(currentNumber) : 1;
-          result = operations["1/x"](denominator, numerator);
+            const denominator = parseFloat(operationState.firstOperand);
+            const numerator = currentNumber ? parseFloat(currentNumber) : 1;
+            result = operations["1/x"](denominator, numerator);
         } else if (operationState.operation === "^y") {
-          const base = parseFloat(operationState.firstOperand);
-          const exponent = evaluateExpression(currentNumber);
-          result = operations["^y"](base, exponent);
+            const base = parseFloat(operationState.firstOperand);
+            const exponent = evaluateExpression(currentNumber);
+            result = operations["^y"](base, exponent);
         } else {
-          const expression = currentNumber;
-          const value = evaluateExpression(expression);
-          result = operations[operationState.operation](value);
+            const expression = currentNumber;
+            const value = evaluateExpression(expression);
+            result = operations[operationState.operation](value);
         }
 
         setCurrentNumber(formatResult(result.toString()));
         setOperationState({
-          operation: "",
-          firstOperand: "",
-          waitingForSecondOperand: false,
+            operation: "",
+            firstOperand: "",
+            waitingForSecondOperand: false,
         });
-        setLastNumber(
-          `${operationState.operation}(${operationState.firstOperand}, ${currentNumber}) = ${result}`
-        );
+        setLastNumber(`${operationState.operation}(${operationState.firstOperand}, ${currentNumber}) = ${result}`);
         return;
-      } else {
+    } else {
         setLastNumber(`${currentNumber} =`);
         calculateResult();
-      }
-      return;
     }
+    return;
+}
 
     if (buttonPressed === "@") {
       setAdvancedKeyboard(!advancedKeyboard);
@@ -241,20 +276,20 @@ export default function HomeScreen() {
       return;
     }
 
-    if (buttonPressed === "%") {
-      if (
-        ["+", "-", "*", "/", "%"].includes(
-          currentNumber[currentNumber.length - 1]
-        )
-      ) {
-        setCurrentNumber(
-          (parseFloat(currentNumber.slice(0, -1)) / 100).toString()
-        );
-      } else {
-        setCurrentNumber((parseFloat(currentNumber) / 100).toString());
-      }
-      return;
-    }
+    // if (buttonPressed === "%") {
+    //   if (
+    //     ["+", "-", "*", "/", "%"].includes(
+    //       currentNumber[currentNumber.length - 1]
+    //     )
+    //   ) {
+    //     setCurrentNumber(
+    //       (parseFloat(currentNumber.slice(0, -1)) / 100).toString()
+    //     );
+    //   } else {
+    //     setCurrentNumber((parseFloat(currentNumber) / 100).toString());
+    //   }
+    //   return;
+    // }
 
     if (["+", "-", "*", "/", "%"].includes(buttonPressed)) {
       if (
@@ -287,29 +322,23 @@ export default function HomeScreen() {
 
     switch (buttonPressed) {
       case "DEL":
-        setCurrentNumber(
-          currentNumber.length > 1
-            ? currentNumber.substring(0, currentNumber.length - 1)
-            : "0"
-        );
-        return;
+          setCurrentNumber(currentNumber.length > 1 ? currentNumber.substring(0, currentNumber.length - 1) : "0");
+          return;
       case "C":
-        setLastNumber("");
-        setCurrentNumber("0");
-        setOperationState({
-          operation: "",
-          firstOperand: "",
-          waitingForSecondOperand: false,
-        });
-        return;
+          setLastNumber("");
+          setCurrentNumber("0");
+          setOperationState({
+              operation: "",
+              firstOperand: "",
+              waitingForSecondOperand: false,
+          });
+          return;
       default:
-        setCurrentNumber(
-          currentNumber === "0" ? buttonPressed : currentNumber + buttonPressed
-        );
-        if (!["+", "-", "*", "/", "%"].includes(buttonPressed)) {
-          setLastNumber(lastNumber + buttonPressed);
-        }
-    }
+          setCurrentNumber(currentNumber === "0" ? buttonPressed : currentNumber + buttonPressed);
+          if (!["+", "-", "*", "/", "%"].includes(buttonPressed)) {
+              setLastNumber(lastNumber + buttonPressed);
+          }
+  }
   }
 
   function calculateResult() {
